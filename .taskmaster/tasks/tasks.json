@@ -27,7 +27,7 @@
         "id": 3,
         "title": "Phase 3 – User Profiles",
         "description": "Onboarding for diet, allergies, goals, budget, skill, equipment, household, pantry basics.",
-        "status": "pending",
+        "status": "done",
         "dependencies": [1],
         "priority": "high",
         "details": "Multi-step onboarding wizard; editable settings page.",

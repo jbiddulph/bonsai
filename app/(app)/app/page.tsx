@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth/server";
 import {
   Leaf,
   ScanLine,
@@ -7,6 +6,7 @@ import {
   Sparkles,
   UtensilsCrossed,
 } from "lucide-react";
+import { requireOnboardedProfile } from "@/lib/onboarding-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -37,13 +37,16 @@ const modules = [
     title: "Pantry & Leftovers",
     blurb: "Cook what you already have. Waste less.",
     icon: Leaf,
-    status: "Coming soon",
+    status: "Ready",
   },
 ];
 
 export default async function AppHomePage() {
-  const { data: session } = await auth.getSession();
-  const name = session?.user?.name?.split(" ")[0] ?? "there";
+  const { user, profile } = await requireOnboardedProfile();
+  const name =
+    profile.displayName?.split(" ")[0] ??
+    user.name?.split(" ")[0] ??
+    "there";
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-10 md:px-6">
@@ -53,16 +56,28 @@ export default async function AppHomePage() {
           Welcome back, {name}
         </h1>
         <p className="mt-3 max-w-xl text-foreground/70">
-          Your plant-based food assistant. Start with a meal plan — everything
-          else helps you stick to it.
+          {profile.diet.replace("_", "-")} · {profile.householdSize}{" "}
+          {profile.householdSize === 1 ? "person" : "people"}
+          {profile.budgetWeeklyGbp
+            ? ` · £${profile.budgetWeeklyGbp}/week`
+            : ""}
+          . Start with a meal plan — everything else helps you stick to it.
         </p>
-        <Link
-          href="/app/plan"
-          className="mt-6 inline-flex items-center gap-2 rounded-full bg-leaf px-5 py-2.5 text-sm font-semibold text-mist transition hover:bg-leaf-deep"
-        >
-          <Sparkles className="size-4" />
-          Generate this week&apos;s plan
-        </Link>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link
+            href="/app/plan"
+            className="inline-flex items-center gap-2 rounded-full bg-leaf px-5 py-2.5 text-sm font-semibold text-mist transition hover:bg-leaf-deep"
+          >
+            <Sparkles className="size-4" />
+            Generate this week&apos;s plan
+          </Link>
+          <Link
+            href="/app/settings"
+            className="inline-flex items-center rounded-full border border-leaf/20 px-5 py-2.5 text-sm font-medium text-leaf-deep transition hover:bg-leaf/5"
+          >
+            Edit preferences
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
