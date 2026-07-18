@@ -6,7 +6,6 @@ const authMiddleware = auth.middleware({
 });
 
 export function proxy(request: NextRequest) {
-  // Server Actions authenticate inside the action itself.
   if (request.headers.has("Next-Action")) {
     return;
   }
@@ -15,5 +14,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/account/:path*"],
+  matcher: ["/app/:path*", "/account/:path*"],
 };

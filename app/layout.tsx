@@ -1,23 +1,27 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
-import { UserButton } from "@neondatabase/auth-ui";
+import { Fraunces, Manrope } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Bonsai",
-  description: "Next.js app with Neon Auth, hosted on Netlify",
+  title: {
+    default: "BonsAI — Grow Smarter. Eat Better.",
+    template: "%s · BonsAI",
+  },
+  description:
+    "AI-powered plant-based meal planning, grocery planning, and food scanning. Save time, money, and waste.",
 };
 
 export default function RootLayout({
@@ -28,19 +32,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${fraunces.variable} ${manrope.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
-        <Providers>
-          <header className="flex h-14 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800">
-            <Link href="/" className="text-lg font-semibold tracking-tight">
-              Bonsai
-            </Link>
-            <UserButton size="icon" />
-          </header>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

@@ -1,0 +1,121 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Phase 1 – Foundation",
+        "description": "Rebrand to BonsAI, public marketing site, protected app shell, Drizzle schema, Netlify migrations, env docs. Keep Neon Auth + Netlify deploy.",
+        "status": "in-progress",
+        "dependencies": [],
+        "priority": "high",
+        "details": "Landing page, /app dashboard, profiles/meal_plans/recipes/pantry schema, remove planets demo.",
+        "testStrategy": "Build succeeds; public / loads; /app requires auth; migrations apply on deploy.",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Phase 2 – Authentication & Billing",
+        "description": "OAuth providers, Stripe Checkout/portal/webhooks, gate premium features by plan.",
+        "status": "pending",
+        "dependencies": [1],
+        "priority": "high",
+        "details": "Google/Apple via Neon Auth; Stripe £7.99/mo and £69/yr; free tier limits.",
+        "testStrategy": "Checkout creates subscription; webhooks update DB; premium routes blocked for free users.",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Phase 3 – User Profiles",
+        "description": "Onboarding for diet, allergies, goals, budget, skill, equipment, household, pantry basics.",
+        "status": "pending",
+        "dependencies": [1],
+        "priority": "high",
+        "details": "Multi-step onboarding wizard; editable settings page.",
+        "testStrategy": "Preferences persist and load into meal planner inputs.",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Phase 4 – AI Meal Planning",
+        "description": "Core product: generate personalized 7-day plans with recipes, nutrition, shopping list, leftovers.",
+        "status": "pending",
+        "dependencies": [3],
+        "priority": "high",
+        "details": "OpenAI Responses API; regenerate single meals or whole plans.",
+        "testStrategy": "Plan generates in under 30s; free tier enforces 5/month limit.",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Phase 5 – Grocery Planner",
+        "description": "Shopping lists from plans, budgeting, supermarket prefs, architecture for live pricing.",
+        "status": "pending",
+        "dependencies": [4],
+        "priority": "medium",
+        "details": "Aisle grouping; estimated spend; substitution suggestions.",
+        "testStrategy": "List generated from plan; budget warnings shown.",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Phase 6 – Scanner",
+        "description": "Image upload, OCR, AI analysis for vegan/vegetarian/allergens/alternatives.",
+        "status": "pending",
+        "dependencies": [1],
+        "priority": "medium",
+        "details": "Blob storage for images; free tier 10 scans/month.",
+        "testStrategy": "Label photo returns dairy detection and alternatives.",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Phase 7 – Recipe Conversion",
+        "description": "Vegan Swap Assistant for diet/budget/protein variants.",
+        "status": "pending",
+        "dependencies": [4],
+        "priority": "medium",
+        "details": "Show substitutions, nutrition estimates, updated instructions.",
+        "testStrategy": "Lasagne → vegan variant with shopping list.",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Phase 8 – Pantry & Leftovers",
+        "description": "Pantry inventory and leftover meal generation.",
+        "status": "pending",
+        "dependencies": [4],
+        "priority": "medium",
+        "details": "AI uses pantry first; leftover ingredient → meals.",
+        "testStrategy": "Pantry items reduce shopping list; leftover prompt returns recipes.",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Phase 9 – Dashboards & Analytics",
+        "description": "Nutrition dashboard, usage analytics, subscription metrics.",
+        "status": "pending",
+        "dependencies": [4, 2],
+        "priority": "low",
+        "details": "Daily/weekly/monthly macros and micronutrients; admin metrics later.",
+        "testStrategy": "Logged meals update nutrition charts.",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Phase 10 – Polish & Launch",
+        "description": "Performance, a11y, SEO, email, marketing polish, beta launch.",
+        "status": "pending",
+        "dependencies": [4, 5, 6],
+        "priority": "low",
+        "details": "Structured data, transactional email, production checklist.",
+        "testStrategy": "Lighthouse/a11y pass; marketing pages convert to sign-up.",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2026-07-18T18:12:00.000Z",
+      "updated": "2026-07-18T18:12:00.000Z",
+      "description": "BonsAI tasks from PRD"
+    }
+  }
+}

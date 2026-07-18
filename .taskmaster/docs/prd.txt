@@ -1,0 +1,108 @@
+BonsAI – Your AI-powered Plant-Based Food Assistant
+
+The meal planner is the core product. Everything else (scanner, recipe conversion, grocery planner) becomes features that increase retention and justify a subscription.
+
+PRODUCT REQUIREMENTS DOCUMENT (PRD)
+Project Name: BonsAI
+Tagline: Grow Smarter. Eat Better.
+
+Vision
+Build the world's smartest AI-powered assistant for plant-based eating.
+BonsAI helps users save time, save money, reduce food waste, and eat healthier by combining AI meal planning, intelligent shopping, ingredient analysis, recipe conversion, and nutrition into one seamless experience.
+
+Goals
+Primary Goals:
+- Create personalized meal plans in under 30 seconds
+- Reduce meal planning effort by 90%
+- Reduce grocery spending
+- Reduce food waste
+- Help users discover new meals
+- Build recurring monthly subscription revenue
+
+Success Metrics:
+User: Daily Active Users, Weekly Meal Plans Generated, Recipes Cooked, Grocery Lists Created, Scanner Uses, Recipe Swaps, User Retention (30 days)
+Business: 100 → 1,000 → 10,000 paying users
+Subscription: £7.99/month, Annual £69/year
+
+Target Audience
+Primary: Plant-based eaters, Vegetarians, Vegans, Flexitarians, Families, Busy professionals, Students, Fitness enthusiasts
+Secondary: People reducing meat consumption, Budget-conscious shoppers, Health-conscious users
+
+User Personas
+Busy Professional: Quick dinners, grocery list, healthy food
+Family: Budget, kid-friendly meals, batch cooking
+Gym User: High protein, calories, macro tracking
+Student: Cheap meals, minimal ingredients, fast recipes
+
+Core Features
+MODULE 1 – AI Meal Planner (CORE)
+Inputs: Goals (Weight Loss/Muscle Gain/Maintenance), Diet (Vegan/Vegetarian/Plant-Based), Allergies, Dislikes, Budget, Cooking Skill, Cooking Time, People, Kitchen Equipment, Available Ingredients, Preferred Supermarket, Meals Per Day, Snacks, Calories, Macros
+Outputs: 7-day plan (Breakfast/Lunch/Dinner/Snacks), Shopping List, Estimated Cost, Nutrition, Cooking Instructions, Meal Prep Guide, Leftover Reuse
+AI optimizes for: Nutrition, Budget, Variety, Time, Leftovers, Seasonal ingredients
+
+MODULE 2 – AI Scanner
+Upload photo → OCR → Ingredient Extraction → AI Analysis
+Supported: Food labels, Menus, Ingredients, Recipes, Restaurant menus
+Returns: Vegan/Vegetarian checks, Hidden animal ingredients, Allergens, Nutrition summary, Health Score, Ultra Processed Score, Better Alternatives
+
+MODULE 3 – Vegan Swap Assistant
+Convert recipes to Vegan/Vegetarian/Gluten Free/High Protein/Low Calorie/Budget/Kid Friendly variants with ingredients, instructions, nutrition, cost, shopping list
+
+MODULE 4 – Grocery Planner
+Budget + People + Days → Meal Plan + Shopping List + Estimated Spend + supermarket suggestions + substitutions
+Stretch: Live pricing (Tesco, Asda, Sainsbury's, Morrisons, Aldi, Lidl, Ocado, Amazon Fresh)
+
+MODULE 5 – Pantry
+Users maintain pantry; AI uses existing food first; reduces waste
+
+MODULE 6 – Leftover AI
+Input leftover ingredients → AI creates meals
+
+MODULE 7 – Nutrition Dashboard
+Daily/Weekly/Monthly: Calories, Protein, Iron, Calcium, Vitamin B12, Omega 3, Fiber, Micronutrients
+
+MODULE 8 – AI Coach
+Daily chat for cooking advice, nutrition Q&A, shopping suggestions
+
+MODULE 9 – Shopping List
+Interactive, grouped by aisle, checkboxes, shareable, export PDF, Apple Reminders, Google Keep
+
+MODULE 10 – Saved Recipes
+Collections, Favorites, Meal History, Shopping History
+
+AI Features: OpenAI for recipe generation, nutrition advice, meal planning, scanner analysis, recipe conversion, meal optimization, food waste suggestions
+
+Authentication: Google, Apple, Email, Magic Link (Neon Auth)
+
+Subscription
+Free: 5 meal plans/month, 10 scans/month, 10 AI chats/day, limited grocery planner, basic recipes
+Premium £7.99/month: Unlimited meal plans/scans/AI, nutrition dashboard, pantry, recipe history, smart grocery, leftover AI, priority AI
+Family £14.99: Up to 6 users, shared pantry/grocery list, family meal planning
+
+Database entities: Users, Profiles, Recipes, Meal Plans, Ingredients, Pantry, Shopping Lists, Scans, Nutrition, Subscriptions, Usage Limits, Favorites
+
+Suggested Stack
+Frontend: Next.js, TypeScript, TailwindCSS, shadcn/ui, TanStack Query
+Backend: Next.js API Routes, Drizzle ORM, PostgreSQL (Neon), OpenAI Responses API, Blob storage, Cron Jobs
+Auth: Neon Auth
+Payments: Stripe (Checkout, Portal, Webhooks, Monthly/Yearly, Trials, Coupons)
+Storage: Vercel Blob or Cloudflare R2
+Deployment: Currently Netlify (existing); PRD mentioned Vercel as option
+
+Development Roadmap for AI Agents
+Phase 1 – Foundation: Next.js, TypeScript, Tailwind, shadcn/ui, Drizzle, Neon Postgres, auth, Stripe scaffolding, deployment; database schema and migrations; env/secrets/CI
+Phase 2 – Authentication & Billing: OAuth/passwordless, Stripe Checkout/portal/webhooks, gate premium features
+Phase 3 – User Profiles: Onboarding for dietary preferences, allergies, goals, budget, skill, equipment, household, pantry basics
+Phase 4 – AI Meal Planning: Weekly plans, recipes, nutrition, shopping lists, leftovers, regenerate meals
+Phase 5 – Grocery Planner: Lists from plans, budgeting, supermarket prefs, future live pricing architecture
+Phase 6 – Scanner: Image upload, OCR, AI analysis for vegan status/allergens/alternatives
+Phase 7 – Recipe Conversion: Convert to diet variants with substitutions and nutrition
+Phase 8 – Pantry & Leftovers: Inventory management, recipes from available ingredients, waste reduction
+Phase 9 – Dashboards & Analytics: Nutrition tracking, usage analytics, subscription metrics
+Phase 10 – Polish & Launch: Performance, a11y, SEO, email, marketing pages, beta, production launch
+
+Existing foundation already in this repo:
+- Next.js 16 App Router on Netlify
+- Neon Auth (email sign-up/sign-in) working
+- Drizzle + Netlify Database migrations folder
+- Neon Postgres connected
