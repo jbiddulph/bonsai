@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bonsai
 
-## Getting Started
+Next.js app with **Neon Auth** (Managed Better Auth) for user authentication, ready to deploy on **Netlify** from GitHub.
 
-First, run the development server:
+## Stack
+
+- [Next.js](https://nextjs.org/) (App Router)
+- [Neon Auth](https://neon.com/docs/auth/overview) via `@neondatabase/auth` + `@neondatabase/auth-ui`
+- [Neon serverless driver](https://neon.com/docs/serverless/serverless-driver) (`@neondatabase/serverless`)
+- [Netlify](https://docs.netlify.com/build/frameworks/framework-setup-guides/nextjs/overview/) hosting
+- [Netlify Neon extension](https://app.netlify.com/extensions/neon) for the Postgres connection string
+
+## Local setup
+
+1. Copy env vars and fill them in:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. In the [Neon Console](https://console.neon.tech/):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+   - Create a project (or use the one provisioned by the Netlify Neon extension).
+   - Enable **Auth** (Managed Better Auth) and copy the **Auth URL** into `NEON_AUTH_BASE_URL`.
+   - Copy a **pooled** connection string into `DATABASE_URL` (or rely on `NETLIFY_DATABASE_URL` after linking Netlify).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Generate a cookie secret:
 
-## Learn More
+```bash
+openssl rand -base64 32
+```
 
-To learn more about Next.js, take a look at the following resources:
+Put the result in `NEON_AUTH_COOKIE_SECRET` (32+ characters).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. Install and run:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm install
+npm run dev
+```
 
-## Deploy on Vercel
+Open [http://localhost:3000](http://localhost:3000). Unauthenticated users are redirected to `/auth/sign-in`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy to Netlify via GitHub
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Push this repo to GitHub.
+
+2. In [Netlify](https://app.netlify.com/), **Add new site → Import an existing project** and select the GitHub repo. Build settings are already in `netlify.toml` (`npm run build`, publish `.next`).
+
+3. Install the [Neon extension](https://app.netlify.com/extensions/neon) on the site so Netlify injects `NETLIFY_DATABASE_URL`.
+
+4. In **Site configuration → Environment variables**, also set:
+
+   | Variable | Source |
+   | --- | --- |
+   | `NEON_AUTH_BASE_URL` | Neon Console → Auth |
+   | `NEON_AUTH_COOKIE_SECRET` | `openssl rand -base64 32` |
+   | `DATABASE_URL` | Optional if `NETLIFY_DATABASE_URL` is present; otherwise paste the Neon pooled URL |
+
+5. In Neon Auth settings, add your Netlify site URL (and `http://localhost:3000` for local) under **Trusted domains**.
+
+6. Trigger a deploy. After it finishes, open the site, sign up, and confirm you land on the home page with your session details.
+
+## Project layout
+
+| Path | Purpose |
+| --- | --- |
+| `lib/auth/server.ts` | Neon Auth server SDK (`handler`, `middleware`, `getSession`) |
+| `lib/auth/client.ts` | Browser auth client |
+| `lib/db.ts` | Neon SQL helper (`NETLIFY_DATABASE_URL` or `DATABASE_URL`) |
+| `app/api/auth/[...path]/route.ts` | Auth API proxy |
+| `app/auth/[path]/page.tsx` | Sign-in / sign-up UI |
+| `app/account/[path]/page.tsx` | Account settings UI |
+| `proxy.ts` | Protects `/` and `/account/*` |
+
+## Notes
+
+- Auth user tables live in the `neon_auth` schema inside your Neon database.
+- Netlify detects Next.js automatically; you do not need to pin `@netlify/plugin-nextjs` unless you want a specific adapter version.
+- Never commit `.env.local` or real secrets.
