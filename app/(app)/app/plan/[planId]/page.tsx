@@ -21,6 +21,11 @@ function MealCard({
   slot: "breakfast" | "lunch" | "dinner" | "snack";
 }) {
   if (!meal) return null;
+  const ingredients = meal.ingredients ?? [];
+  const instructions = meal.instructions ?? [];
+  const prep = Number(meal.prepMinutes) || 0;
+  const cook = Number(meal.cookMinutes) || 0;
+
   return (
     <div className="rounded-xl border border-leaf/10 bg-white/60 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -34,23 +39,23 @@ function MealCard({
       </div>
       <p className="mt-2 text-sm text-foreground/65">{meal.description}</p>
       <p className="mt-3 text-xs text-foreground/50">
-        {meal.prepMinutes + meal.cookMinutes} min · {meal.calories} kcal ·{" "}
-        {meal.proteinG}g protein · £{meal.estimatedCostGbp}
+        {prep + cook} min · {meal.calories ?? "—"} kcal · {meal.proteinG ?? "—"}
+        g protein · £{meal.estimatedCostGbp ?? "—"}
       </p>
       <details className="mt-3 text-sm">
         <summary className="cursor-pointer font-medium text-leaf">
           Ingredients & method
         </summary>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-foreground/70">
-          {meal.ingredients.map((ing) => (
-            <li key={`${ing.item}-${ing.amount}`}>
+          {ingredients.map((ing, i) => (
+            <li key={`${ing.item}-${ing.amount}-${i}`}>
               {ing.amount} {ing.item}
             </li>
           ))}
         </ul>
         <ol className="mt-3 list-decimal space-y-1 pl-5 text-foreground/70">
-          {meal.instructions.map((step) => (
-            <li key={step}>{step}</li>
+          {instructions.map((step, i) => (
+            <li key={`${i}-${step.slice(0, 24)}`}>{step}</li>
           ))}
         </ol>
       </details>

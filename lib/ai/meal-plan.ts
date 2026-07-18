@@ -71,6 +71,7 @@ const MEAL_SCHEMA = {
   },
 } as const;
 
+/** OpenAI strict mode: avoid anyOf/null — use includeSnack + optional snack meal. */
 export const mealPlanJsonSchema = {
   type: "object",
   additionalProperties: false,
@@ -87,20 +88,17 @@ export const mealPlanJsonSchema = {
     title: { type: "string" },
     days: {
       type: "array",
-      minItems: 7,
-      maxItems: 7,
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["day", "breakfast", "lunch", "dinner", "snack"],
+        required: ["day", "breakfast", "lunch", "dinner", "includeSnack", "snack"],
         properties: {
           day: { type: "string" },
           breakfast: MEAL_SCHEMA,
           lunch: MEAL_SCHEMA,
           dinner: MEAL_SCHEMA,
-          snack: {
-            anyOf: [MEAL_SCHEMA, { type: "null" }],
-          },
+          includeSnack: { type: "boolean" },
+          snack: MEAL_SCHEMA,
         },
       },
     },
@@ -158,7 +156,6 @@ function meal(
   };
 }
 
-/** Deterministic plan used when OPENAI_API_KEY is missing (local/demo). */
 export function mockMealPlan(profile: Profile): GeneratedMealPlan {
   const days = [
     "Monday",
@@ -175,7 +172,7 @@ export function mockMealPlan(profile: Profile): GeneratedMealPlan {
       proteinG: 18,
       estimatedCostGbp: 1.2,
     }),
-    lunch: meal(`${profile.diet} buddha bowl`, {
+    lunch: meal(`${profile.diet.replaceAll("_", "-")} buddha bowl`, {
       calories: 520,
       proteinG: 28,
       estimatedCostGbp: 2.8,
@@ -209,7 +206,7 @@ export function mockMealPlan(profile: Profile): GeneratedMealPlan {
       { item: "Apples", amount: "7", aisle: "Produce" },
       { item: "Peanut butter", amount: "1 jar", aisle: "Spreads" },
     ],
-    estimatedCostGbp: Number(profile.budgetWeeklyGbp ?? 35),
+    estimatedCostGbp: Number(profile.budgetWeeklyGbp ?? 35) || 35,
     nutritionSummary: {
       avgDailyCalories: profile.calorieTarget ?? 1730,
       avgDailyProteinG: profile.proteinTargetG ?? 86,
@@ -226,13 +223,13 @@ export function buildMealPlanPrompt(
   pantryNames: string[],
 ): string {
   return [
-    "Create a 7-day plant-based meal plan as JSON matching the schema.",
-    "Optimise for nutrition, budget, variety, time, leftovers, and seasonal UK ingredients.",
+    "Create a compact 7-day plant-based meal plan as JSON matching the schema.",
+    "Keep ingredient lists short (3–6 items) and instructions to 3 steps max.",
+    "Optimise for nutrition, budget, variety, time, leftovers, and UK ingredients.",
     `Diet: ${profile.diet}`,
     `Goal: ${profile.goal}`,
     `Household size: ${profile.householdSize}`,
-    `Meals/day: ${profile.mealsPerDay}`,
-    `Snacks: ${profile.includeSnacks}`,
+    `Include snacks: ${profile.includeSnacks}`,
     `Cooking skill: ${profile.cookingSkill}`,
     `Max cook time: ${profile.cookingTimeMinutes} minutes`,
     `Weekly budget GBP: ${profile.budgetWeeklyGbp ?? "flexible"}`,
@@ -243,51 +240,107 @@ export function buildMealPlanPrompt(
     `Calorie target: ${profile.calorieTarget ?? "auto"}`,
     `Protein target g: ${profile.proteinTargetG ?? "auto"}`,
     `Pantry first: ${pantryNames.join(", ") || "none listed"}`,
-    "Use pantry items where sensible. Keep estimatedCostGbp realistic for UK prices.",
-    "If snacks are disabled, set snack to null each day.",
+    "For each day set includeSnack true/false. Always provide a snack object; if includeSnack is false it will be ignored.",
   ].join("\n");
+}
+
+type OpenAiDay = GeneratedDay & {
+  includeSnack?: boolean;
+  snack: GeneratedMeal;
+};
+
+function normalizePlan(
+  raw: Omit<GeneratedMealPlan, "days"> & { days: OpenAiDay[] },
+  profile: Profile,
+): GeneratedMealPlan {
+  const days = (raw.days ?? []).slice(0, 7).map((day) => ({
+    day: day.day,
+    breakfast: day.breakfast,
+    lunch: day.lunch,
+    dinner: day.dinner,
+    snack:
+      profile.includeSnacks && day.includeSnack !== false ? day.snack : null,
+  }));
+
+  while (days.length < 7) {
+    const mockDay = mockMealPlan(profile).days[days.length];
+    days.push(mockDay);
+  }
+
+  return {
+    title: raw.title || `Week for ${profile.displayName ?? "you"}`,
+    days,
+    shoppingList: raw.shoppingList?.length
+      ? raw.shoppingList
+      : mockMealPlan(profile).shoppingList,
+    estimatedCostGbp: Number(raw.estimatedCostGbp) || 35,
+    nutritionSummary: raw.nutritionSummary ?? {
+      avgDailyCalories: 1800,
+      avgDailyProteinG: 80,
+    },
+    leftoverStrategy:
+      raw.leftoverStrategy || mockMealPlan(profile).leftoverStrategy,
+    mealPrepGuide: raw.mealPrepGuide || mockMealPlan(profile).mealPrepGuide,
+  };
 }
 
 export async function generateMealPlanWithAI(
   profile: Profile,
   pantryNames: string[],
-): Promise<{ plan: GeneratedMealPlan; provider: "openai" | "mock" }> {
+): Promise<{ plan: GeneratedMealPlan; provider: "openai" | "mock"; warning?: string }> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return { plan: mockMealPlan(profile), provider: "mock" };
   }
 
-  const OpenAI = (await import("openai")).default;
-  const client = new OpenAI({ apiKey });
+  try {
+    const OpenAI = (await import("openai")).default;
+    const client = new OpenAI({ apiKey, timeout: 45_000 });
 
-  const response = await client.responses.create({
-    model: process.env.OPENAI_MEAL_PLAN_MODEL ?? "gpt-4.1-mini",
-    input: [
-      {
-        role: "system",
-        content:
-          "You are BonsAI, an expert plant-based meal planner for UK households.",
+    const response = await client.responses.create({
+      model: process.env.OPENAI_MEAL_PLAN_MODEL ?? "gpt-4.1-mini",
+      input: [
+        {
+          role: "system",
+          content:
+            "You are BonsAI, an expert plant-based meal planner for UK households. Be concise.",
+        },
+        {
+          role: "user",
+          content: buildMealPlanPrompt(profile, pantryNames),
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "meal_plan",
+          strict: true,
+          schema: mealPlanJsonSchema,
+        },
       },
-      {
-        role: "user",
-        content: buildMealPlanPrompt(profile, pantryNames),
-      },
-    ],
-    text: {
-      format: {
-        type: "json_schema",
-        name: "meal_plan",
-        strict: true,
-        schema: mealPlanJsonSchema,
-      },
-    },
-  });
+    });
 
-  const text = response.output_text;
-  if (!text) {
-    throw new Error("OpenAI returned an empty meal plan");
+    const text = response.output_text;
+    if (!text) {
+      throw new Error("OpenAI returned an empty meal plan");
+    }
+
+    const parsed = JSON.parse(text) as Omit<GeneratedMealPlan, "days"> & {
+      days: OpenAiDay[];
+    };
+    return {
+      plan: normalizePlan(parsed, profile),
+      provider: "openai",
+    };
+  } catch (error) {
+    console.error("[meal-plan] OpenAI failed, using mock:", error);
+    return {
+      plan: mockMealPlan(profile),
+      provider: "mock",
+      warning:
+        error instanceof Error
+          ? `AI unavailable (${error.message}). Showing a demo plan instead.`
+          : "AI unavailable. Showing a demo plan instead.",
+    };
   }
-
-  const plan = JSON.parse(text) as GeneratedMealPlan;
-  return { plan, provider: "openai" };
 }
