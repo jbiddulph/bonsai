@@ -1,6 +1,7 @@
 "use server";
 
 import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth/server";
 import { getDb } from "@/lib/drizzle";
@@ -10,7 +11,7 @@ import type { ProfileFormData } from "@/lib/profile-options";
 async function requireUser() {
   const { data: session } = await auth.getSession();
   if (!session?.user?.id) {
-    throw new Error("Unauthorized");
+    redirect("/auth/sign-in");
   }
   return session.user;
 }
@@ -73,7 +74,10 @@ export async function saveProfile(
   const values = toProfileValues(data, complete);
 
   const [existing] = await db
-    .select({ id: profiles.id, onboardingCompleted: profiles.onboardingCompleted })
+    .select({
+      id: profiles.id,
+      onboardingCompleted: profiles.onboardingCompleted,
+    })
     .from(profiles)
     .where(eq(profiles.userId, user.id))
     .limit(1);
@@ -95,7 +99,6 @@ export async function saveProfile(
   }
 
   if (options?.replacePantryBasics && data.pantryBasics.length > 0) {
-    // Only seed staples that are not already present (by name, case-insensitive)
     const existingItems = await db
       .select({ name: pantryItems.name })
       .from(pantryItems)
