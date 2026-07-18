@@ -8,6 +8,7 @@ const nav = [
   { href: "/app/scan", label: "Scanner" },
   { href: "/app/pantry", label: "Pantry" },
   { href: "/app/groceries", label: "Groceries" },
+  { href: "/app/billing", label: "Billing" },
   { href: "/app/settings", label: "Profile" },
 ];
 

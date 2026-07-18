@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "migrate": "node scripts/migrate.mjs",
+    "build": "node scripts/migrate.mjs && next build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -18,8 +19,10 @@
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.25.0",
     "next": "16.2.10",
+    "openai": "^6.48.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "stripe": "^22.3.2",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
