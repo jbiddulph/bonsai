@@ -47,6 +47,17 @@ export default async function SettingsPage({
         </p>
       )}
 
+      {profile && (
+        <p className="mb-6 text-sm text-foreground/55">
+          Stored in <code className="text-foreground/80">public.profiles</code>
+          : {profile.displayName ?? "—"} · {profile.diet} · {profile.goal}
+          {profile.updatedAt
+            ? ` · updated ${new Date(profile.updatedAt).toLocaleString("en-GB")}`
+            : ""}
+          . Auth account name is separate ({user.name ?? user.email}).
+        </p>
+      )}
+
       <ProfileWizard initial={initial} mode="settings" />
     </main>
   );
