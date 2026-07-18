@@ -110,10 +110,15 @@ export function ProfileWizard({ initial, mode }: Props) {
           completeOnboarding,
           replacePantryBasics: mode === "onboarding" || completeOnboarding,
         });
-        router.push(mode === "onboarding" ? "/app" : "/app/settings");
+        router.push(mode === "onboarding" ? "/app" : "/app/settings?saved=1");
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not save profile");
+        console.error("[saveProfile]", e);
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Could not save profile — check DATABASE_URL on Netlify",
+        );
       }
     });
   }

@@ -7,7 +7,7 @@ export function getDb() {
   const url = getDatabaseUrl();
   if (!url) {
     throw new Error(
-      "Missing database URL. Set NETLIFY_DATABASE_URL, NETLIFY_DB_URL, or DATABASE_URL.",
+      "Missing database URL. Set DATABASE_URL in Netlify → Environment variables (non-empty), then redeploy.",
     );
   }
   return drizzle(neon(url), { schema });

@@ -5,9 +5,14 @@ import { profileToForm } from "@/lib/profile-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ saved?: string }>;
+}) {
   const { user, profile } = await getCurrentProfile();
   const initial = profileToForm(profile, user.name ?? "");
+  const params = await searchParams;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 md:px-6">
@@ -33,6 +38,12 @@ export default async function SettingsPage() {
       {!profile?.onboardingCompleted && (
         <p className="mb-6 rounded-xl border border-citrus/40 bg-citrus/10 px-4 py-3 text-sm text-soil">
           Finish all steps and save to complete onboarding.
+        </p>
+      )}
+
+      {params.saved === "1" && (
+        <p className="mb-6 rounded-xl border border-sprout/40 bg-sprout/10 px-4 py-3 text-sm text-leaf-deep">
+          Preferences saved to your Neon database.
         </p>
       )}
 
