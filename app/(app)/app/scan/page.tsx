@@ -27,8 +27,9 @@ export default async function ScanPage() {
         AI Scanner
       </h1>
       <p className="mt-3 max-w-xl text-foreground/70">
-        Paste a food label or menu text to check vegan/vegetarian status, hidden
-        animal ingredients, allergens, and smarter swaps.
+        Open your camera to scan a product barcode (Open Food Facts) or capture
+        a label photo — we read the ingredients and analyse vegan status,
+        allergens, and swaps automatically.
       </p>
 
       <div className="mt-8">
@@ -48,7 +49,7 @@ export default async function ScanPage() {
         </h2>
         {history.length === 0 ? (
           <p className="mt-4 text-sm text-foreground/60">
-            No scans yet — paste a label above to start.
+            No scans yet — open the camera or paste a label to start.
           </p>
         ) : (
           <ul className="mt-4 space-y-4">

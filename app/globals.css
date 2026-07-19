@@ -75,3 +75,14 @@ body {
 .animate-shimmer-bar {
   animation: shimmer 1.2s ease-in-out infinite;
 }
+
+/* html5-qrcode camera preview */
+#bonsai-barcode-reader video {
+  width: 100% !important;
+  border-radius: 0.75rem;
+  object-fit: cover;
+}
+
+#bonsai-barcode-reader img {
+  display: none !important;
+}
