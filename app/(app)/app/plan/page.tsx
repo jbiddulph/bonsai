@@ -22,11 +22,17 @@ export default async function PlanIndexPage() {
       <p className="mt-3 max-w-xl text-foreground/70">
         Personalized 7-day plans from your profile — nutrition, budget, pantry,
         leftovers.{" "}
-        {!process.env.OPENAI_API_KEY && (
+        {!process.env.OPENAI_API_KEY ? (
           <span className="text-amber-800">
             Demo mode (no OPENAI_API_KEY) — generates a realistic mock plan.
           </span>
-        )}
+        ) : process.env.NETLIFY === "true" &&
+          process.env.OPENAI_MEAL_PLAN_SYNC !== "1" ? (
+          <span className="text-amber-800">
+            Netlify demo plans (fast). Live AI needs a background job or
+            OPENAI_MEAL_PLAN_SYNC=1.
+          </span>
+        ) : null}
       </p>
 
       <div className="mt-6">

@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { generateWeeklyMealPlan } from "@/app/actions/meal-plan";
 import Link from "next/link";
 
 type Props = {
@@ -11,6 +10,19 @@ type Props = {
   limit: number;
   isPremium: boolean;
 };
+
+type GenerateResult =
+  | {
+      ok: true;
+      planId: string;
+      provider?: string;
+      warning?: string;
+    }
+  | {
+      ok: false;
+      error: string;
+      code?: string;
+    };
 
 export function GeneratePlanButton({ remaining, used, limit, isPremium }: Props) {
   const router = useRouter();
@@ -28,7 +40,28 @@ export function GeneratePlanButton({ remaining, used, limit, isPremium }: Props)
           setInfo(null);
           startTransition(async () => {
             try {
-              const result = await generateWeeklyMealPlan();
+              const res = await fetch("/api/plans/generate", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { Accept: "application/json" },
+              });
+
+              if (res.status === 504 || res.status === 502) {
+                setError(
+                  "The server timed out before the plan finished. Please try again — demo plans should complete quickly after the latest deploy.",
+                );
+                return;
+              }
+
+              const contentType = res.headers.get("content-type") ?? "";
+              if (!contentType.includes("application/json")) {
+                setError(
+                  "Unexpected server response. Please reload and try again.",
+                );
+                return;
+              }
+
+              const result = (await res.json()) as GenerateResult;
               if (!result.ok) {
                 setError(result.error);
                 return;

@@ -301,17 +301,39 @@ function normalizePlan(
   };
 }
 
-/** Stay under Netlify gateway (~10–26s) so we never 504 — fall back to mock. */
-const OPENAI_BUDGET_MS = Number(process.env.OPENAI_MEAL_PLAN_TIMEOUT_MS ?? 8_000);
+/**
+ * Netlify serverless requests die (~10s) before a full weekly JSON plan finishes.
+ * Default: mock on Netlify. Opt in with OPENAI_MEAL_PLAN_SYNC=1 (still aborted quickly).
+ */
+function shouldCallOpenAISync(): boolean {
+  if (!process.env.OPENAI_API_KEY) return false;
+  if (process.env.OPENAI_MEAL_PLAN_SYNC === "0") return false;
+  if (process.env.OPENAI_MEAL_PLAN_SYNC === "1") return true;
+  // Auto: skip sync AI on Netlify — cold start + auth + DB leave almost no budget.
+  if (process.env.NETLIFY === "true") return false;
+  return true;
+}
+
+const OPENAI_BUDGET_MS = Number(process.env.OPENAI_MEAL_PLAN_TIMEOUT_MS ?? 4_000);
 
 export async function generateMealPlanWithAI(
   profile: Profile,
   pantryNames: string[],
 ): Promise<{ plan: GeneratedMealPlan; provider: "openai" | "mock"; warning?: string }> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return { plan: mockMealPlan(profile), provider: "mock" };
+  if (!shouldCallOpenAISync()) {
+    const onNetlify = process.env.NETLIFY === "true";
+    return {
+      plan: mockMealPlan(profile),
+      provider: "mock",
+      warning: onNetlify
+        ? "Live AI is skipped on Netlify (request time limit). Showing a personalized demo plan — set OPENAI_MEAL_PLAN_SYNC=1 to try AI with a short timeout."
+        : undefined,
+    };
   }
+
+  const apiKey = process.env.OPENAI_API_KEY!;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OPENAI_BUDGET_MS);
 
   try {
     const OpenAI = (await import("openai")).default;
@@ -321,8 +343,8 @@ export async function generateMealPlanWithAI(
       maxRetries: 0,
     });
 
-    const response = await Promise.race([
-      client.responses.create({
+    const response = await client.responses.create(
+      {
         model: process.env.OPENAI_MEAL_PLAN_MODEL ?? "gpt-4.1-mini",
         input: [
           {
@@ -343,14 +365,9 @@ export async function generateMealPlanWithAI(
             schema: mealPlanJsonSchema,
           },
         },
-      }),
-      new Promise<never>((_, reject) => {
-        setTimeout(
-          () => reject(new Error(`AI timed out after ${OPENAI_BUDGET_MS}ms`)),
-          OPENAI_BUDGET_MS,
-        );
-      }),
-    ]);
+      },
+      { signal: controller.signal },
+    );
 
     const text = response.output_text;
     if (!text) {
@@ -374,5 +391,7 @@ export async function generateMealPlanWithAI(
           ? `AI unavailable (${error.message}). Showing a demo plan instead.`
           : "AI unavailable. Showing a demo plan instead.",
     };
+  } finally {
+    clearTimeout(timer);
   }
 }
