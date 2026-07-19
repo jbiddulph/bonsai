@@ -1,4 +1,5 @@
 import type { Profile } from "@/db/schema";
+import { foodImageForMeal } from "@/lib/food-images";
 
 export type GeneratedMeal = {
   name: string;
@@ -10,6 +11,8 @@ export type GeneratedMeal = {
   calories: number;
   proteinG: number;
   estimatedCostGbp: number;
+  imageUrl?: string;
+  imageAlt?: string;
 };
 
 export type GeneratedDay = {
@@ -130,11 +133,23 @@ export const mealPlanJsonSchema = {
   },
 } as const;
 
+function withFoodImage(meal: GeneratedMeal): GeneratedMeal {
+  if (meal.imageUrl) return meal;
+  const image = foodImageForMeal(
+    meal.name,
+    [
+      meal.description,
+      ...(meal.ingredients ?? []).slice(0, 3).map((i) => i.item),
+    ].filter(Boolean),
+  );
+  return { ...meal, imageUrl: image.url, imageAlt: image.alt };
+}
+
 function meal(
   name: string,
   extras?: Partial<GeneratedMeal>,
 ): GeneratedMeal {
-  return {
+  return withFoodImage({
     name,
     description: `Simple ${name.toLowerCase()} using pantry staples.`,
     prepMinutes: 10,
@@ -153,7 +168,7 @@ function meal(
     proteinG: 22,
     estimatedCostGbp: 2.4,
     ...extras,
-  };
+  });
 }
 
 export function mockMealPlan(profile: Profile): GeneratedMealPlan {
@@ -255,11 +270,13 @@ function normalizePlan(
 ): GeneratedMealPlan {
   const days = (raw.days ?? []).slice(0, 7).map((day) => ({
     day: day.day,
-    breakfast: day.breakfast,
-    lunch: day.lunch,
-    dinner: day.dinner,
+    breakfast: withFoodImage(day.breakfast),
+    lunch: withFoodImage(day.lunch),
+    dinner: withFoodImage(day.dinner),
     snack:
-      profile.includeSnacks && day.includeSnack !== false ? day.snack : null,
+      profile.includeSnacks && day.includeSnack !== false && day.snack
+        ? withFoodImage(day.snack)
+        : null,
   }));
 
   while (days.length < 7) {
@@ -284,6 +301,9 @@ function normalizePlan(
   };
 }
 
+/** Stay under Netlify gateway (~10–26s) so we never 504 — fall back to mock. */
+const OPENAI_BUDGET_MS = Number(process.env.OPENAI_MEAL_PLAN_TIMEOUT_MS ?? 8_000);
+
 export async function generateMealPlanWithAI(
   profile: Profile,
   pantryNames: string[],
@@ -295,30 +315,42 @@ export async function generateMealPlanWithAI(
 
   try {
     const OpenAI = (await import("openai")).default;
-    const client = new OpenAI({ apiKey, timeout: 45_000 });
-
-    const response = await client.responses.create({
-      model: process.env.OPENAI_MEAL_PLAN_MODEL ?? "gpt-4.1-mini",
-      input: [
-        {
-          role: "system",
-          content:
-            "You are BonsAI, an expert plant-based meal planner for UK households. Be concise.",
-        },
-        {
-          role: "user",
-          content: buildMealPlanPrompt(profile, pantryNames),
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "meal_plan",
-          strict: true,
-          schema: mealPlanJsonSchema,
-        },
-      },
+    const client = new OpenAI({
+      apiKey,
+      timeout: OPENAI_BUDGET_MS,
+      maxRetries: 0,
     });
+
+    const response = await Promise.race([
+      client.responses.create({
+        model: process.env.OPENAI_MEAL_PLAN_MODEL ?? "gpt-4.1-mini",
+        input: [
+          {
+            role: "system",
+            content:
+              "You are BonsAI, an expert plant-based meal planner for UK households. Be concise.",
+          },
+          {
+            role: "user",
+            content: buildMealPlanPrompt(profile, pantryNames),
+          },
+        ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "meal_plan",
+            strict: true,
+            schema: mealPlanJsonSchema,
+          },
+        },
+      }),
+      new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error(`AI timed out after ${OPENAI_BUDGET_MS}ms`)),
+          OPENAI_BUDGET_MS,
+        );
+      }),
+    ]);
 
     const text = response.output_text;
     if (!text) {

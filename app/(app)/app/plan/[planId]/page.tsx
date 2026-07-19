@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMealPlan } from "@/app/actions/meal-plan";
+import { MealFoodImage } from "@/components/meal-food-image";
 import { RegenerateMealButton } from "@/components/regenerate-meal-button";
 import type { GeneratedDay, GeneratedMeal } from "@/lib/ai/meal-plan";
 import { requireOnboardedProfile } from "@/lib/onboarding-gate";
@@ -27,38 +28,52 @@ function MealCard({
   const cook = Number(meal.cookMinutes) || 0;
 
   return (
-    <div className="rounded-xl border border-leaf/10 bg-white/60 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold tracking-wide text-sprout uppercase">
-            {label}
+    <div className="overflow-hidden rounded-xl border border-leaf/10 bg-white/60">
+      <div className="grid gap-0 sm:grid-cols-[140px_1fr]">
+        <MealFoodImage
+          mealName={meal.name}
+          imageUrl={meal.imageUrl}
+          imageAlt={meal.imageAlt}
+          className="aspect-[4/3] sm:aspect-auto sm:min-h-full"
+        />
+        <div className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold tracking-wide text-sprout uppercase">
+                {label}
+              </p>
+              <h3 className="mt-1 font-medium text-leaf-deep">{meal.name}</h3>
+            </div>
+            <RegenerateMealButton
+              planId={planId}
+              dayIndex={dayIndex}
+              slot={slot}
+            />
+          </div>
+          <p className="mt-2 text-sm text-foreground/65">{meal.description}</p>
+          <p className="mt-3 text-xs text-foreground/50">
+            {prep + cook} min · {meal.calories ?? "—"} kcal ·{" "}
+            {meal.proteinG ?? "—"}g protein · £{meal.estimatedCostGbp ?? "—"}
           </p>
-          <h3 className="mt-1 font-medium text-leaf-deep">{meal.name}</h3>
+          <details className="mt-3 text-sm">
+            <summary className="cursor-pointer font-medium text-leaf">
+              Ingredients & method
+            </summary>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-foreground/70">
+              {ingredients.map((ing, i) => (
+                <li key={`${ing.item}-${ing.amount}-${i}`}>
+                  {ing.amount} {ing.item}
+                </li>
+              ))}
+            </ul>
+            <ol className="mt-3 list-decimal space-y-1 pl-5 text-foreground/70">
+              {instructions.map((step, i) => (
+                <li key={`${i}-${step.slice(0, 24)}`}>{step}</li>
+              ))}
+            </ol>
+          </details>
         </div>
-        <RegenerateMealButton planId={planId} dayIndex={dayIndex} slot={slot} />
       </div>
-      <p className="mt-2 text-sm text-foreground/65">{meal.description}</p>
-      <p className="mt-3 text-xs text-foreground/50">
-        {prep + cook} min · {meal.calories ?? "—"} kcal · {meal.proteinG ?? "—"}
-        g protein · £{meal.estimatedCostGbp ?? "—"}
-      </p>
-      <details className="mt-3 text-sm">
-        <summary className="cursor-pointer font-medium text-leaf">
-          Ingredients & method
-        </summary>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-foreground/70">
-          {ingredients.map((ing, i) => (
-            <li key={`${ing.item}-${ing.amount}-${i}`}>
-              {ing.amount} {ing.item}
-            </li>
-          ))}
-        </ul>
-        <ol className="mt-3 list-decimal space-y-1 pl-5 text-foreground/70">
-          {instructions.map((step, i) => (
-            <li key={`${i}-${step.slice(0, 24)}`}>{step}</li>
-          ))}
-        </ol>
-      </details>
     </div>
   );
 }

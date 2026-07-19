@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { GeneratePlanButton } from "@/components/generate-plan-button";
+import { ProduceStrip } from "@/components/meal-food-image";
 import { getMealPlanUsage, listMealPlans } from "@/app/actions/meal-plan";
+import { produceGalleryImages } from "@/lib/food-images";
 import { requireOnboardedProfile } from "@/lib/onboarding-gate";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +11,7 @@ export default async function PlanIndexPage() {
   await requireOnboardedProfile();
   const usage = await getMealPlanUsage();
   const plans = await listMealPlans();
+  const produce = produceGalleryImages();
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 md:px-6">
@@ -25,6 +28,21 @@ export default async function PlanIndexPage() {
           </span>
         )}
       </p>
+
+      <div className="mt-6">
+        <ProduceStrip images={produce} />
+        <p className="mt-2 text-right text-[10px] text-foreground/40">
+          Photos via{" "}
+          <a
+            href="https://unsplash.com/?utm_source=bonsai&utm_medium=referral"
+            className="underline-offset-2 hover:underline"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Unsplash
+          </a>
+        </p>
+      </div>
 
       <div className="mt-8">
         <GeneratePlanButton

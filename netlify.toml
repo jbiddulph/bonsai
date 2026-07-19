@@ -4,3 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Give AI generation headroom; we still abort OpenAI earlier and fall back to mock.
+[functions]
+  timeout = 26
