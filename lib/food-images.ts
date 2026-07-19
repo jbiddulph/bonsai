@@ -1,8 +1,8 @@
 /**
- * Food photography for meal cards.
+ * Food photography via Unsplash.
  *
- * Default: curated Unsplash CDN URLs (no API key required).
- * Optional: set UNSPLASH_ACCESS_KEY for live Unsplash search.
+ * Set UNSPLASH_ACCESS_KEY (Application Access Key / Client ID).
+ * UNSPLASH_SECRET_KEY is only for OAuth user login — not used for photo search.
  * https://unsplash.com/documentation
  */
 
@@ -11,11 +11,11 @@ export type FoodImage = {
   alt: string;
   photographer?: string;
   photographerUrl?: string;
+  downloadLocation?: string;
   source: "unsplash" | "curated";
 };
 
 type CuratedPhoto = {
-  /** Unsplash images CDN path segment after `photo-` */
   path: string;
   keywords: string[];
   alt: string;
@@ -23,7 +23,7 @@ type CuratedPhoto = {
   photographerPath: string;
 };
 
-/** Stable plant-food Unsplash photos (hotlink-friendly CDN). */
+/** Fallback when the API key is missing or Unsplash is unreachable. */
 const CURATED: CuratedPhoto[] = [
   {
     path: "1493770348161-369560ae357d",
@@ -136,13 +136,17 @@ function scorePhoto(photo: CuratedPhoto, haystack: string): number {
   return score;
 }
 
-/** Pick a curated produce/meal image from a dish name (sync, no network). */
+export function hasUnsplashAccessKey(): boolean {
+  return Boolean(process.env.UNSPLASH_ACCESS_KEY?.trim());
+}
+
+/** Sync curated fallback (no network). */
 export function foodImageForMeal(
   mealName: string,
   extras: string[] = [],
 ): FoodImage {
   const haystack = [mealName, ...extras].join(" ").toLowerCase();
-  let best = CURATED[8]; // produce default
+  let best = CURATED[8];
   let bestScore = -1;
 
   for (const photo of CURATED) {
@@ -156,86 +160,202 @@ export function foodImageForMeal(
   return curatedToImage(best);
 }
 
-export function produceGalleryImages(): FoodImage[] {
+export function produceGalleryImagesFallback(): FoodImage[] {
   return [CURATED[8], CURATED[7], CURATED[1], CURATED[12]].map((p) =>
     curatedToImage(p, 640),
   );
 }
 
-type UnsplashSearchResult = {
-  results?: {
-    urls?: { regular?: string; small?: string };
-    alt_description?: string | null;
-    description?: string | null;
-    user?: { name?: string; links?: { html?: string } };
-  }[];
+type UnsplashPhoto = {
+  id?: string;
+  urls?: { regular?: string; small?: string; raw?: string };
+  alt_description?: string | null;
+  description?: string | null;
+  links?: { download_location?: string };
+  user?: {
+    name?: string;
+    links?: { html?: string };
+  };
 };
 
+type UnsplashSearchResult = {
+  results?: UnsplashPhoto[];
+};
+
+function unsplashHeaders(): HeadersInit {
+  const key = process.env.UNSPLASH_ACCESS_KEY?.trim();
+  if (!key) throw new Error("UNSPLASH_ACCESS_KEY missing");
+  return {
+    Authorization: `Client-ID ${key}`,
+    "Accept-Version": "v1",
+  };
+}
+
+/** Unsplash requires triggering download_location when a photo is used. */
+async function trackUnsplashDownload(downloadLocation?: string) {
+  if (!downloadLocation || !hasUnsplashAccessKey()) return;
+  try {
+    await fetch(downloadLocation, {
+      headers: unsplashHeaders(),
+      signal: AbortSignal.timeout(1500),
+      cache: "no-store",
+    });
+  } catch {
+    // Non-fatal — display still works.
+  }
+}
+
+function photoToFoodImage(photo: UnsplashPhoto, fallbackAlt: string): FoodImage | null {
+  const url = photo.urls?.regular ?? photo.urls?.small;
+  if (!url) return null;
+  return {
+    url,
+    alt: photo.alt_description || photo.description || fallbackAlt,
+    photographer: photo.user?.name,
+    photographerUrl: photo.user?.links?.html
+      ? `${photo.user.links.html}?utm_source=bonsai&utm_medium=referral`
+      : undefined,
+    downloadLocation: photo.links?.download_location,
+    source: "unsplash",
+  };
+}
+
+async function searchUnsplash(
+  query: string,
+  perPage = 1,
+): Promise<FoodImage[]> {
+  if (!hasUnsplashAccessKey()) return [];
+
+  const url = new URL("https://api.unsplash.com/search/photos");
+  url.searchParams.set("query", query.slice(0, 100));
+  url.searchParams.set("per_page", String(perPage));
+  url.searchParams.set("orientation", "landscape");
+  url.searchParams.set("content_filter", "high");
+
+  const res = await fetch(url, {
+    headers: unsplashHeaders(),
+    signal: AbortSignal.timeout(2500),
+    next: { revalidate: 86_400, tags: [`unsplash:${query.slice(0, 40)}`] },
+  });
+
+  if (!res.ok) {
+    console.error("[unsplash] search failed", res.status, await res.text());
+    return [];
+  }
+
+  const data = (await res.json()) as UnsplashSearchResult;
+  const images: FoodImage[] = [];
+  for (const photo of data.results ?? []) {
+    const img = photoToFoodImage(photo, query);
+    if (img) images.push(img);
+  }
+  return images;
+}
+
 /**
- * Optional live Unsplash search. Falls back to curated matching on any failure.
+ * Live Unsplash search for a meal. Falls back to curated matching.
+ * Triggers Unsplash download tracking when a live photo is chosen.
  */
 export async function resolveFoodImage(
   mealName: string,
   extras: string[] = [],
 ): Promise<FoodImage> {
   const fallback = foodImageForMeal(mealName, extras);
-  const accessKey = process.env.UNSPLASH_ACCESS_KEY;
-  if (!accessKey) return fallback;
+  if (!hasUnsplashAccessKey()) return fallback;
 
-  const query = ["plant based food", mealName, ...extras.slice(0, 2)]
+  const query = ["plant based", mealName.replace(/#\d+/g, "").trim(), ...extras.slice(0, 2)]
     .filter(Boolean)
-    .join(" ")
-    .slice(0, 100);
+    .join(" ");
 
   try {
-    const url = new URL("https://api.unsplash.com/search/photos");
-    url.searchParams.set("query", query);
-    url.searchParams.set("per_page", "1");
-    url.searchParams.set("orientation", "landscape");
-    url.searchParams.set("content_filter", "high");
-
-    const res = await fetch(url, {
-      headers: { Authorization: `Client-ID ${accessKey}` },
-      signal: AbortSignal.timeout(2500),
-      next: { revalidate: 86_400 },
-    });
-
-    if (!res.ok) return fallback;
-
-    const data = (await res.json()) as UnsplashSearchResult;
-    const hit = data.results?.[0];
-    const imageUrl = hit?.urls?.regular ?? hit?.urls?.small;
-    if (!hit || !imageUrl) return fallback;
-
-    return {
-      url: imageUrl,
-      alt: hit.alt_description || hit.description || mealName,
-      photographer: hit.user?.name,
-      photographerUrl: hit.user?.links?.html
-        ? `${hit.user.links.html}?utm_source=bonsai&utm_medium=referral`
-        : undefined,
-      source: "unsplash",
-    };
-  } catch {
+    const [hit] = await searchUnsplash(query, 1);
+    if (!hit) return fallback;
+    void trackUnsplashDownload(hit.downloadLocation);
+    return hit;
+  } catch (error) {
+    console.error("[unsplash] resolveFoodImage", error);
     return fallback;
   }
 }
 
-export async function attachMealImages<
-  T extends {
-    name: string;
-    description?: string;
-    ingredients?: { item: string }[];
-  },
->(meal: T): Promise<T & { imageUrl: string; imageAlt: string }> {
-  const extras = [
-    meal.description ?? "",
-    ...(meal.ingredients ?? []).slice(0, 3).map((i) => i.item),
-  ];
-  const image = await resolveFoodImage(meal.name, extras);
-  return {
-    ...meal,
-    imageUrl: image.url,
-    imageAlt: image.alt,
-  };
+export async function produceGalleryImages(): Promise<FoodImage[]> {
+  const fallback = produceGalleryImagesFallback();
+  if (!hasUnsplashAccessKey()) return fallback;
+
+  try {
+    const queries = [
+      "fresh vegetables market",
+      "fresh fruit platter",
+      "healthy salad bowl",
+      "tomato basil produce",
+    ];
+    const results = await Promise.all(
+      queries.map(async (q) => {
+        const [img] = await searchUnsplash(q, 1);
+        return img;
+      }),
+    );
+    const live = results.filter(Boolean) as FoodImage[];
+    if (live.length >= 3) {
+      for (const img of live) void trackUnsplashDownload(img.downloadLocation);
+      return live;
+    }
+  } catch (error) {
+    console.error("[unsplash] produceGalleryImages", error);
+  }
+  return fallback;
+}
+
+export function mealImageCacheKey(mealName: string): string {
+  return mealName.replace(/#\d+/g, "").trim().toLowerCase();
+}
+
+type MealLike = {
+  name: string;
+  description?: string;
+  ingredients?: { item: string }[];
+  imageUrl?: string;
+  imageAlt?: string;
+};
+
+/**
+ * Attach Unsplash (or curated) images to every meal in a plan.
+ * Dedupes by dish name so a week only needs a handful of API calls.
+ */
+export async function enrichMealsWithImages<T extends MealLike>(
+  meals: T[],
+): Promise<T[]> {
+  const cache = new Map<string, FoodImage>();
+  const unique = new Map<string, T>();
+
+  for (const meal of meals) {
+    const key = mealImageCacheKey(meal.name);
+    if (!unique.has(key)) unique.set(key, meal);
+  }
+
+  await Promise.all(
+    [...unique.entries()].map(async ([key, meal]) => {
+      const extras = [
+        meal.description ?? "",
+        ...(meal.ingredients ?? []).slice(0, 3).map((i) => i.item),
+      ];
+      cache.set(key, await resolveFoodImage(meal.name, extras));
+    }),
+  );
+
+  return meals.map((meal) => {
+    const img = cache.get(mealImageCacheKey(meal.name)) ?? foodImageForMeal(meal.name);
+    return {
+      ...meal,
+      imageUrl: img.url,
+      imageAlt: img.alt,
+    };
+  });
+}
+
+export async function attachMealImages<T extends MealLike>(
+  meal: T,
+): Promise<T & { imageUrl: string; imageAlt: string }> {
+  const [enriched] = await enrichMealsWithImages([meal]);
+  return enriched as T & { imageUrl: string; imageAlt: string };
 }

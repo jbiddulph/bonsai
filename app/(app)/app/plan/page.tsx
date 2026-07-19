@@ -11,7 +11,7 @@ export default async function PlanIndexPage() {
   await requireOnboardedProfile();
   const usage = await getMealPlanUsage();
   const plans = await listMealPlans();
-  const produce = produceGalleryImages();
+  const produce = await produceGalleryImages();
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 md:px-6">
@@ -47,6 +47,7 @@ export default async function PlanIndexPage() {
           >
             Unsplash
           </a>
+          {process.env.UNSPLASH_ACCESS_KEY ? " · live search" : " · curated"}
         </p>
       </div>
 

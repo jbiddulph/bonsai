@@ -1,5 +1,5 @@
 import type { Profile } from "@/db/schema";
-import { foodImageForMeal } from "@/lib/food-images";
+import { enrichMealsWithImages, foodImageForMeal } from "@/lib/food-images";
 
 export type GeneratedMeal = {
   name: string;
@@ -301,6 +301,26 @@ function normalizePlan(
   };
 }
 
+async function enrichPlanImages(
+  plan: GeneratedMealPlan,
+): Promise<GeneratedMealPlan> {
+  const flat: GeneratedMeal[] = [];
+  for (const day of plan.days) {
+    flat.push(day.breakfast, day.lunch, day.dinner);
+    if (day.snack) flat.push(day.snack);
+  }
+  const enriched = await enrichMealsWithImages(flat);
+  let i = 0;
+  const days = plan.days.map((day) => {
+    const breakfast = enriched[i++]!;
+    const lunch = enriched[i++]!;
+    const dinner = enriched[i++]!;
+    const snack = day.snack ? enriched[i++]! : null;
+    return { ...day, breakfast, lunch, dinner, snack };
+  });
+  return { ...plan, days };
+}
+
 /**
  * Netlify serverless requests die (~10s) before a full weekly JSON plan finishes.
  * Default: mock on Netlify. Opt in with OPENAI_MEAL_PLAN_SYNC=1 (still aborted quickly).
@@ -322,8 +342,9 @@ export async function generateMealPlanWithAI(
 ): Promise<{ plan: GeneratedMealPlan; provider: "openai" | "mock"; warning?: string }> {
   if (!shouldCallOpenAISync()) {
     const onNetlify = process.env.NETLIFY === "true";
+    const plan = await enrichPlanImages(mockMealPlan(profile));
     return {
-      plan: mockMealPlan(profile),
+      plan,
       provider: "mock",
       warning: onNetlify
         ? "Live AI is skipped on Netlify (request time limit). Showing a personalized demo plan — set OPENAI_MEAL_PLAN_SYNC=1 to try AI with a short timeout."
@@ -378,13 +399,13 @@ export async function generateMealPlanWithAI(
       days: OpenAiDay[];
     };
     return {
-      plan: normalizePlan(parsed, profile),
+      plan: await enrichPlanImages(normalizePlan(parsed, profile)),
       provider: "openai",
     };
   } catch (error) {
     console.error("[meal-plan] OpenAI failed, using mock:", error);
     return {
-      plan: mockMealPlan(profile),
+      plan: await enrichPlanImages(mockMealPlan(profile)),
       provider: "mock",
       warning:
         error instanceof Error

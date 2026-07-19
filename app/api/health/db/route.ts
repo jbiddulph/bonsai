@@ -16,6 +16,7 @@ export async function GET() {
         database: "missing",
         hint: "Set a non-empty DATABASE_URL (Neon pooled string) on Netlify and redeploy",
         openai: Boolean(process.env.OPENAI_API_KEY),
+        unsplash: Boolean(process.env.UNSPLASH_ACCESS_KEY),
       },
       { status: 500 },
     );
@@ -42,6 +43,7 @@ export async function GET() {
       mealPlans: plans.plans,
       latestProfile: latest[0] ?? null,
       openai: Boolean(process.env.OPENAI_API_KEY),
+      unsplash: Boolean(process.env.UNSPLASH_ACCESS_KEY),
     });
   } catch (error) {
     return NextResponse.json(
@@ -51,6 +53,7 @@ export async function GET() {
         ...target,
         message: error instanceof Error ? error.message : "unknown",
         openai: Boolean(process.env.OPENAI_API_KEY),
+        unsplash: Boolean(process.env.UNSPLASH_ACCESS_KEY),
       },
       { status: 500 },
     );

@@ -4,7 +4,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { mealPlans, pantryItems, shoppingLists } from "@/db/schema";
 import { generateMealPlanWithAI, type GeneratedDay } from "@/lib/ai/meal-plan";
-import { foodImageForMeal } from "@/lib/food-images";
+import { attachMealImages } from "@/lib/food-images";
 import {
   assertCanGenerateMealPlan,
   getSubscriptionTier,
@@ -156,8 +156,7 @@ export async function regenerateMealInPlan(input: {
       "Peanut satay veg bowl",
     ];
     const pick = replacements[Math.floor(Math.random() * replacements.length)];
-    const image = foodImageForMeal(pick, [profile.diet, input.slot]);
-    const nextMeal = {
+    const nextMeal = await attachMealImages({
       name: pick,
       description: `Regenerated ${input.slot} for ${profile.diet} preferences.`,
       prepMinutes: 12,
@@ -175,9 +174,7 @@ export async function regenerateMealInPlan(input: {
       calories: 480,
       proteinG: 24,
       estimatedCostGbp: 2.6,
-      imageUrl: image.url,
-      imageAlt: image.alt,
-    };
+    });
 
     const updatedDays = days.map((day, index) => {
       if (index !== input.dayIndex) return day;
