@@ -234,7 +234,7 @@ export function ScannerForm({ remaining, used, limit, isPremium }: Props) {
       <div className="flex gap-2 rounded-full bg-leaf/5 p-1">
         {(
           [
-            ["camera", "Camera / barcode"],
+            ["camera", "Camera scan"],
             ["paste", "Paste text"],
           ] as const
         ).map(([id, title]) => (
@@ -256,7 +256,8 @@ export function ScannerForm({ remaining, used, limit, isPremium }: Props) {
       <div className="space-y-4 rounded-2xl border border-leaf/10 bg-mist p-5">
         {mode === "camera" ? (
           <CameraScanner
-            disabled={pending || atLimit}
+            disabled={atLimit}
+            busy={pending}
             onBarcode={handleBarcode}
             onLabelPhoto={handleLabelPhoto}
             status={status}

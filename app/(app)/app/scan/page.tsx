@@ -27,9 +27,9 @@ export default async function ScanPage() {
         AI Scanner
       </h1>
       <p className="mt-3 max-w-xl text-foreground/70">
-        Open your camera to scan a product barcode (Open Food Facts) or capture
-        a label photo — we read the ingredients and analyse vegan status,
-        allergens, and swaps automatically.
+        Two ways to scan: <strong>Scan barcode</strong> (automatic when the
+        camera is open) or <strong>Take label photo</strong> to read ingredient
+        text. Results analyse vegan status, allergens, and swaps.
       </p>
 
       <div className="mt-8">

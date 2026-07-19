@@ -1,11 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, CameraOff, Loader2, ScanBarcode } from "lucide-react";
+import {
+  CameraOff,
+  FileImage,
+  Loader2,
+  ScanBarcode,
+  ScanLine,
+} from "lucide-react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 
 type Props = {
   disabled?: boolean;
+  busy?: boolean;
   onBarcode: (code: string) => void;
   onLabelPhoto: (file: File) => void;
   status?: string | null;
@@ -13,15 +20,22 @@ type Props = {
 
 const SCANNER_ID = "bonsai-barcode-reader";
 
+/**
+ * Two separate flows:
+ * 1. Scan barcode → live camera auto-reads EAN/UPC, then looks up the product
+ * 2. Scan label photo → take/upload a photo, OCR reads ingredients (not automatic from live video)
+ */
 export function CameraScanner({
   disabled,
+  busy,
   onBarcode,
   onLabelPhoto,
   status,
 }: Props) {
-  const [active, setActive] = useState(false);
+  const [barcodeMode, setBarcodeMode] = useState(false);
   const [starting, setStarting] = useState(false);
   const [camError, setCamError] = useState<string | null>(null);
+  const [lastBarcode, setLastBarcode] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastCodeRef = useRef<string>("");
   const lastAtRef = useRef(0);
@@ -29,10 +43,10 @@ export function CameraScanner({
   const onBarcodeRef = useRef(onBarcode);
   onBarcodeRef.current = onBarcode;
 
-  const stopCamera = useCallback(async () => {
+  const stopBarcodeCamera = useCallback(async () => {
     const scanner = scannerRef.current;
     scannerRef.current = null;
-    setActive(false);
+    setBarcodeMode(false);
     if (!scanner) return;
     try {
       if (scanner.isScanning) await scanner.stop();
@@ -42,12 +56,13 @@ export function CameraScanner({
     }
   }, []);
 
-  const startCamera = useCallback(async () => {
-    if (disabled) return;
+  const startBarcodeCamera = useCallback(async () => {
+    if (disabled || busy) return;
     setCamError(null);
+    setLastBarcode(null);
     setStarting(true);
     try {
-      await stopCamera();
+      await stopBarcodeCamera();
       const scanner = new Html5Qrcode(SCANNER_ID, {
         verbose: false,
         formatsToSupport: [
@@ -56,7 +71,6 @@ export function CameraScanner({
           Html5QrcodeSupportedFormats.UPC_A,
           Html5QrcodeSupportedFormats.UPC_E,
           Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.QR_CODE,
         ],
       });
       scannerRef.current = scanner;
@@ -64,116 +78,168 @@ export function CameraScanner({
       await scanner.start(
         { facingMode: "environment" },
         {
-          fps: 8,
-          qrbox: { width: 280, height: 160 },
+          fps: 10,
+          qrbox: { width: 280, height: 140 },
           aspectRatio: 1.777,
         },
         (decoded) => {
           const now = Date.now();
           if (
             decoded === lastCodeRef.current &&
-            now - lastAtRef.current < 3500
+            now - lastAtRef.current < 4000
           ) {
             return;
           }
           lastCodeRef.current = decoded;
           lastAtRef.current = now;
+          setLastBarcode(decoded);
           if (typeof navigator !== "undefined" && navigator.vibrate) {
-            navigator.vibrate(40);
+            navigator.vibrate(50);
           }
           onBarcodeRef.current(decoded);
         },
         () => {
-          // frame miss — ignore
+          // frame miss
         },
       );
-      setActive(true);
+      setBarcodeMode(true);
     } catch (error) {
       console.error("[camera]", error);
       setCamError(
         error instanceof Error
           ? error.message
-          : "Could not open the camera. Check permissions, or use photo upload.",
+          : "Could not open the camera. Check permissions.",
       );
-      setActive(false);
+      setBarcodeMode(false);
     } finally {
       setStarting(false);
     }
-  }, [disabled, stopCamera]);
+  }, [busy, disabled, stopBarcodeCamera]);
 
   useEffect(() => {
     return () => {
-      void stopCamera();
+      void stopBarcodeCamera();
     };
-  }, [stopCamera]);
+  }, [stopBarcodeCamera]);
+
+  // Pause live scanning while a lookup/analysis is running
+  useEffect(() => {
+    const scanner = scannerRef.current;
+    if (!scanner || !barcodeMode) return;
+    if (busy && scanner.isScanning) {
+      void scanner.pause(true);
+    } else if (!busy && scanner.isScanning === false) {
+      try {
+        scanner.resume();
+      } catch {
+        // ignore
+      }
+    }
+  }, [busy, barcodeMode]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl border border-leaf/15 bg-white/70 p-4">
+          <div className="flex items-center gap-2 text-leaf-deep">
+            <ScanBarcode className="size-5" />
+            <h3 className="font-semibold">1. Scan barcode</h3>
+          </div>
+          <p className="mt-2 text-sm text-foreground/65">
+            Opens the camera and <strong>automatically</strong> reads the
+            barcode, then fetches product info.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {!barcodeMode ? (
+              <button
+                type="button"
+                disabled={disabled || busy || starting}
+                onClick={() => void startBarcodeCamera()}
+                className="inline-flex items-center gap-2 rounded-full bg-leaf px-4 py-2.5 text-sm font-semibold text-mist hover:bg-leaf-deep disabled:opacity-50"
+              >
+                {starting ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ScanBarcode className="size-4" />
+                )}
+                {starting ? "Opening…" : "Scan barcode"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void stopBarcodeCamera()}
+                className="inline-flex items-center gap-2 rounded-full border border-leaf/20 px-4 py-2.5 text-sm font-medium text-leaf-deep hover:bg-leaf/5"
+              >
+                <CameraOff className="size-4" />
+                Stop barcode camera
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-leaf/15 bg-white/70 p-4">
+          <div className="flex items-center gap-2 text-leaf-deep">
+            <ScanLine className="size-5" />
+            <h3 className="font-semibold">2. Scan ingredients label</h3>
+          </div>
+          <p className="mt-2 text-sm text-foreground/65">
+            Take a photo of the ingredients list. OCR reads the text, then we
+            analyse it. <strong>Not automatic</strong> from the live barcode
+            camera.
+          </p>
+          <div className="mt-3">
+            <button
+              type="button"
+              disabled={disabled || busy}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-2 rounded-full border border-leaf/20 bg-mist px-4 py-2.5 text-sm font-semibold text-leaf-deep hover:bg-leaf/5 disabled:opacity-50"
+            >
+              <FileImage className="size-4" />
+              Take label photo
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) {
+                  void stopBarcodeCamera();
+                  onLabelPhoto(file);
+                }
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
       <div
         id={SCANNER_ID}
-        className={`overflow-hidden rounded-xl bg-leaf-deep/90 ${
-          active ? "min-h-[240px]" : "hidden"
+        className={`relative overflow-hidden rounded-xl bg-leaf-deep/90 ${
+          barcodeMode ? "min-h-[240px]" : "hidden"
         }`}
       />
 
-      {!active && (
-        <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-leaf/25 bg-leaf/5 px-4 py-10 text-center">
-          <ScanBarcode className="size-10 text-leaf" />
-          <p className="max-w-sm text-sm text-foreground/70">
-            Point at a product barcode for instant lookup, or capture a label
-            photo to read the ingredients.
-          </p>
+      {barcodeMode && (
+        <div className="rounded-xl border border-sprout/30 bg-sprout/10 px-3 py-2 text-sm text-leaf-deep">
+          {busy ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="size-4 animate-spin" />
+              Barcode detected{lastBarcode ? ` (${lastBarcode})` : ""} — fetching
+              product info…
+            </span>
+          ) : (
+            <span>
+              Point the box at the barcode. Scanning is{" "}
+              <strong>automatic</strong> — no extra button needed. Hold steady
+              until it beeps/vibrates.
+            </span>
+          )}
         </div>
       )}
-
-      <div className="flex flex-wrap gap-2">
-        {!active ? (
-          <button
-            type="button"
-            disabled={disabled || starting}
-            onClick={() => void startCamera()}
-            className="inline-flex items-center gap-2 rounded-full bg-leaf px-4 py-2.5 text-sm font-semibold text-mist hover:bg-leaf-deep disabled:opacity-50"
-          >
-            {starting ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Camera className="size-4" />
-            )}
-            {starting ? "Opening camera…" : "Open camera"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => void stopCamera()}
-            className="inline-flex items-center gap-2 rounded-full border border-leaf/20 px-4 py-2.5 text-sm font-medium text-leaf-deep hover:bg-leaf/5"
-          >
-            <CameraOff className="size-4" />
-            Stop camera
-          </button>
-        )}
-
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => fileInputRef.current?.click()}
-          className="inline-flex items-center gap-2 rounded-full border border-leaf/20 px-4 py-2.5 text-sm font-medium text-leaf-deep hover:bg-leaf/5 disabled:opacity-50"
-        >
-          <Camera className="size-4" />
-          Take / upload label photo
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) onLabelPhoto(file);
-          }}
-        />
-      </div>
 
       {status && (
         <p className="text-sm font-medium text-leaf-deep" role="status">
@@ -182,8 +248,8 @@ export function CameraScanner({
       )}
       {camError && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          {camError} On iPhone, use Safari and allow camera access — or use
-          “Take / upload label photo”.
+          {camError} On iPhone, use Safari and allow camera access. You can
+          still use “Take label photo”.
         </p>
       )}
     </div>
