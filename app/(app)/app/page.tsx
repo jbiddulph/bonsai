@@ -6,6 +6,7 @@ import {
   Sparkles,
   UtensilsCrossed,
 } from "lucide-react";
+import { SignOutButton } from "@/components/sign-out-button";
 import { requireOnboardedProfile } from "@/lib/onboarding-gate";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ const modules = [
     title: "AI Meal Planner",
     blurb: "7-day plant-based plans in under 30 seconds.",
     icon: UtensilsCrossed,
-    status: "Next up",
+    status: "Ready",
   },
   {
     href: "/app/scan",
@@ -30,7 +31,7 @@ const modules = [
     title: "Grocery Planner",
     blurb: "Budget-aware lists from your weekly plan.",
     icon: ShoppingBasket,
-    status: "Coming soon",
+    status: "Ready",
   },
   {
     href: "/app/pantry",
@@ -77,6 +78,7 @@ export default async function AppHomePage() {
           >
             Edit preferences
           </Link>
+          <SignOutButton />
         </div>
       </div>
 

@@ -1,6 +1,12 @@
 import Link from "next/link";
+import { auth } from "@/lib/auth/server";
 
-export default function LandingPage() {
+export const dynamic = "force-dynamic";
+
+export default async function LandingPage() {
+  const { data: session } = await auth.getSession();
+  const signedIn = Boolean(session?.user);
+
   return (
     <main className="relative min-h-screen overflow-hidden">
       <section className="relative flex min-h-screen flex-col justify-end px-6 pb-16 pt-28 md:px-10 md:pb-20">
@@ -33,18 +39,37 @@ export default function LandingPage() {
             in under 30 seconds — less waste, lower spend, better eating.
           </p>
           <div className="animate-rise-delay mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/auth/sign-up"
-              className="rounded-full bg-mist px-6 py-3 text-sm font-semibold text-leaf-deep transition hover:bg-white"
-            >
-              Plan my week free
-            </Link>
-            <Link
-              href="/auth/sign-in"
-              className="rounded-full border border-mist/40 px-6 py-3 text-sm font-medium text-mist transition hover:border-mist hover:bg-mist/10"
-            >
-              I already have an account
-            </Link>
+            {signedIn ? (
+              <>
+                <Link
+                  href="/app/plan"
+                  className="rounded-full bg-mist px-6 py-3 text-sm font-semibold text-leaf-deep transition hover:bg-white"
+                >
+                  Open meal planner
+                </Link>
+                <Link
+                  href="/app"
+                  className="rounded-full border border-mist/40 px-6 py-3 text-sm font-medium text-mist transition hover:border-mist hover:bg-mist/10"
+                >
+                  Go to my app
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/auth/sign-up"
+                  className="rounded-full bg-mist px-6 py-3 text-sm font-semibold text-leaf-deep transition hover:bg-white"
+                >
+                  Plan my week free
+                </Link>
+                <Link
+                  href="/auth/sign-in"
+                  className="rounded-full border border-mist/40 px-6 py-3 text-sm font-medium text-mist transition hover:border-mist hover:bg-mist/10"
+                >
+                  I already have an account
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -88,10 +113,10 @@ export default function LandingPage() {
             </p>
           </div>
           <Link
-            href="/auth/sign-up"
+            href={signedIn ? "/app/plan" : "/auth/sign-up"}
             className="rounded-full bg-citrus px-6 py-3 text-sm font-semibold text-soil transition hover:brightness-110"
           >
-            Create your account
+            {signedIn ? "Plan this week" : "Create your account"}
           </Link>
         </div>
       </section>

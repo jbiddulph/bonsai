@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { regenerateMealInPlan } from "@/app/actions/meal-plan";
 
 export function RegenerateMealButton({
@@ -26,9 +27,10 @@ export function RegenerateMealButton({
           router.refresh();
         });
       }}
-      className="text-xs font-medium text-leaf underline-offset-2 hover:underline disabled:opacity-50"
+      className="inline-flex items-center gap-1 text-xs font-medium text-leaf underline-offset-2 hover:underline disabled:opacity-50"
     >
-      {pending ? "…" : "Swap"}
+      {pending && <Loader2 className="size-3 animate-spin" />}
+      {pending ? "Swapping…" : "Swap"}
     </button>
   );
 }

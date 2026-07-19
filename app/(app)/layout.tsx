@@ -46,7 +46,9 @@ export default async function AppLayout({
             </nav>
           )}
         </div>
-        <UserButton size="icon" />
+        <div className="flex items-center gap-3">
+          <UserButton size="icon" />
+        </div>
       </header>
       <div className="flex-1">{children}</div>
     </div>

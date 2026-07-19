@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
+import { GeneratingOverlay } from "@/components/loading-sprout";
 
 type Props = {
   remaining: number;
@@ -32,6 +34,7 @@ export function GeneratePlanButton({ remaining, used, limit, isPremium }: Props)
 
   return (
     <div className="space-y-3">
+      <GeneratingOverlay active={pending} label="Growing your 7-day plan…" />
       <button
         type="button"
         disabled={pending || (!isPremium && remaining <= 0)}
@@ -81,8 +84,9 @@ export function GeneratePlanButton({ remaining, used, limit, isPremium }: Props)
             }
           });
         }}
-        className="rounded-full bg-leaf px-5 py-2.5 text-sm font-semibold text-mist transition hover:bg-leaf-deep disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded-full bg-leaf px-5 py-2.5 text-sm font-semibold text-mist transition hover:bg-leaf-deep disabled:opacity-50"
       >
+        {pending && <Loader2 className="size-4 animate-spin" />}
         {pending ? "Generating your week…" : "Generate 7-day plan"}
       </button>
       <p className="text-sm text-foreground/60">
