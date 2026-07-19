@@ -1,94 +1,105 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
-import { shoppingLists } from "@/db/schema";
-import { getDb } from "@/lib/drizzle";
+import { ArrowLeft, Sparkles } from "lucide-react";
+import { getGroceryContext, type ShopItem } from "@/app/actions/grocery";
+import { CreateGroceryListButton } from "@/components/create-grocery-list-button";
+import { GroceryListCard } from "@/components/grocery-list-card";
 import { requireOnboardedProfile } from "@/lib/onboarding-gate";
 
 export const dynamic = "force-dynamic";
 
-type ShopItem = { item: string; amount: string; aisle: string };
-
 export default async function GroceriesPage() {
-  const { user } = await requireOnboardedProfile();
-  const db = getDb();
-  const lists = await db
-    .select()
-    .from(shoppingLists)
-    .where(eq(shoppingLists.userId, user.id))
-    .orderBy(desc(shoppingLists.createdAt))
-    .limit(10);
+  await requireOnboardedProfile();
+  const { lists, pantryNames, supermarket, budgetWeeklyGbp, householdSize } =
+    await getGroceryContext();
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10 md:px-6">
-      <h1 className="font-[family-name:var(--font-fraunces)] text-3xl font-semibold text-leaf-deep">
+    <main className="mx-auto w-full max-w-3xl px-4 py-10 md:px-6">
+      <Link
+        href="/app"
+        className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-leaf underline-offset-4 hover:underline"
+      >
+        <ArrowLeft className="size-4" />
+        Back to app
+      </Link>
+
+      <p className="text-sm font-medium text-sprout">Module 4</p>
+      <h1 className="mt-2 font-[family-name:var(--font-fraunces)] text-4xl font-semibold text-leaf-deep">
         Grocery Planner
       </h1>
-      <p className="mt-3 text-foreground/70">
-        Lists are generated with each meal plan. Live supermarket pricing comes
-        later.
+      <p className="mt-3 max-w-xl text-foreground/70">
+        Interactive lists from your meal plans — grouped by aisle, pantry-aware,
+        and easy to tick off in the shop.
       </p>
 
+      <div className="mt-6 grid gap-3 rounded-2xl border border-leaf/10 bg-mist p-4 text-sm sm:grid-cols-3">
+        <div>
+          <p className="text-xs font-semibold tracking-wide text-sprout uppercase">
+            Preferred shop
+          </p>
+          <p className="mt-1 font-medium text-leaf-deep">
+            {supermarket ?? "Any supermarket"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold tracking-wide text-sprout uppercase">
+            Weekly budget
+          </p>
+          <p className="mt-1 font-medium text-leaf-deep">
+            {budgetWeeklyGbp ? `£${budgetWeeklyGbp}` : "Flexible"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold tracking-wide text-sprout uppercase">
+            Household
+          </p>
+          <p className="mt-1 font-medium text-leaf-deep">
+            {householdSize} {householdSize === 1 ? "person" : "people"}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link
+          href="/app/plan"
+          className="inline-flex items-center gap-2 rounded-full bg-leaf px-5 py-2.5 text-sm font-semibold text-mist transition hover:bg-leaf-deep"
+        >
+          <Sparkles className="size-4" />
+          Generate plan + list
+        </Link>
+        <CreateGroceryListButton />
+        <Link
+          href="/app/pantry"
+          className="inline-flex items-center rounded-full border border-leaf/20 px-4 py-2 text-sm font-medium text-leaf-deep hover:bg-leaf/5"
+        >
+          View pantry
+        </Link>
+      </div>
+
       {lists.length === 0 ? (
-        <p className="mt-8 text-sm text-foreground/60">
-          No lists yet.{" "}
+        <p className="mt-10 rounded-2xl border border-leaf/10 bg-mist px-5 py-8 text-sm text-foreground/65">
+          No shopping lists yet.{" "}
           <Link href="/app/plan" className="font-medium text-leaf underline">
             Generate a meal plan
           </Link>{" "}
-          first.
+          to build one automatically, or create a blank list above.
         </p>
       ) : (
-        <div className="mt-8 space-y-8">
-          {lists.map((list) => {
-            const items = (list.items as ShopItem[]) ?? [];
-            const byAisle = items.reduce<Record<string, ShopItem[]>>(
-              (acc, item) => {
-                const aisle = item.aisle || "Other";
-                acc[aisle] = acc[aisle] ? [...acc[aisle], item] : [item];
-                return acc;
-              },
-              {},
-            );
-
-            return (
-              <section
-                key={list.id}
-                className="rounded-2xl border border-leaf/10 bg-mist p-5"
-              >
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 className="font-[family-name:var(--font-fraunces)] text-xl font-semibold text-leaf-deep">
-                    {list.title}
-                  </h2>
-                  <p className="text-sm text-foreground/55">
-                    {list.supermarket ?? "Any shop"}
-                    {list.estimatedSpendGbp
-                      ? ` · ~£${list.estimatedSpendGbp}`
-                      : ""}
-                  </p>
-                </div>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  {Object.entries(byAisle).map(([aisle, aisleItems]) => (
-                    <div key={aisle}>
-                      <p className="text-xs font-semibold tracking-wide text-sprout uppercase">
-                        {aisle}
-                      </p>
-                      <ul className="mt-2 space-y-1 text-sm text-foreground/75">
-                        {aisleItems.map((item) => (
-                          <li key={`${item.item}-${item.amount}`}>
-                            <label className="flex items-start gap-2">
-                              <input type="checkbox" className="mt-1 accent-leaf" />
-                              <span>
-                                {item.amount} {item.item}
-                              </span>
-                            </label>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            );
-          })}
+        <div className="mt-10 space-y-8">
+          {lists.map((list) => (
+            <GroceryListCard
+              key={list.id}
+              listId={list.id}
+              title={list.title}
+              supermarket={list.supermarket}
+              estimatedSpendGbp={
+                list.estimatedSpendGbp
+                  ? String(list.estimatedSpendGbp)
+                  : null
+              }
+              items={(list.items as ShopItem[]) ?? []}
+              pantryNames={pantryNames}
+            />
+          ))}
         </div>
       )}
     </main>

@@ -95,3 +95,40 @@ export async function incrementMealPlanUsage(userId: string) {
     .set({ mealPlansUsed: usage.mealPlansUsed + 1 })
     .where(eq(usageLimits.id, usage.id));
 }
+
+export async function assertCanScan(userId: string) {
+  const { isPremium } = await getSubscriptionTier(userId);
+  if (isPremium) {
+    return { allowed: true as const, remaining: Infinity, used: 0, limit: Infinity };
+  }
+
+  const usage = await getOrCreateUsage(userId);
+  const remaining = FREE_SCAN_LIMIT - usage.scansUsed;
+  if (remaining <= 0) {
+    return {
+      allowed: false as const,
+      remaining: 0,
+      used: usage.scansUsed,
+      limit: FREE_SCAN_LIMIT,
+    };
+  }
+
+  return {
+    allowed: true as const,
+    remaining,
+    used: usage.scansUsed,
+    limit: FREE_SCAN_LIMIT,
+  };
+}
+
+export async function incrementScanUsage(userId: string) {
+  const { isPremium } = await getSubscriptionTier(userId);
+  if (isPremium) return;
+
+  const usage = await getOrCreateUsage(userId);
+  const db = getDb();
+  await db
+    .update(usageLimits)
+    .set({ scansUsed: usage.scansUsed + 1 })
+    .where(eq(usageLimits.id, usage.id));
+}

@@ -24,7 +24,7 @@ const modules = [
     title: "AI Scanner",
     blurb: "Check labels and menus for hidden animal ingredients.",
     icon: ScanLine,
-    status: "Coming soon",
+    status: "Ready",
   },
   {
     href: "/app/groceries",
