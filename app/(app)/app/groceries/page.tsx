@@ -91,7 +91,7 @@ export default async function GroceriesPage() {
         </p>
       ) : (
         <div className="mt-10 space-y-8">
-          {lists.map((list) => (
+          {lists.map((list, index) => (
             <GroceryListCard
               key={list.id}
               listId={list.id}
@@ -104,6 +104,7 @@ export default async function GroceriesPage() {
               }
               items={(list.items as ShopItem[]) ?? []}
               pantryNames={pantryNames}
+              defaultExpanded={index === 0}
             />
           ))}
         </div>

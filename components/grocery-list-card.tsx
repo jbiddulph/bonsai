@@ -17,6 +17,7 @@ type ListProps = {
   estimatedSpendGbp: string | null;
   items: ShopItem[];
   pantryNames: string[];
+  defaultExpanded?: boolean;
 };
 
 function storageKey(listId: string) {
@@ -30,9 +31,10 @@ export function GroceryListCard({
   estimatedSpendGbp,
   items: initialItems,
   pantryNames,
+  defaultExpanded = false,
 }: ListProps) {
   const router = useRouter();
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [hidePantry, setHidePantry] = useState(true);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [newItem, setNewItem] = useState("");
