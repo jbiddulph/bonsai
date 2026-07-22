@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, Calendar, Sparkles } from "lucide-react";
 import { getGroceryContext, type ShopItem } from "@/app/actions/grocery";
+import { listMealPlans } from "@/app/actions/meal-plan";
 import { CreateGroceryListButton } from "@/components/create-grocery-list-button";
+import { GenerateFromPlanButton } from "@/components/generate-from-plan-button";
 import { GroceryListCard } from "@/components/grocery-list-card";
 import { requireOnboardedProfile } from "@/lib/onboarding-gate";
 
@@ -11,6 +13,7 @@ export default async function GroceriesPage() {
   await requireOnboardedProfile();
   const { lists, pantryNames, supermarket, budgetWeeklyGbp, householdSize } =
     await getGroceryContext();
+  const recentPlans = await listMealPlans();
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 md:px-6">
@@ -66,6 +69,9 @@ export default async function GroceriesPage() {
           <Sparkles className="size-4" />
           Generate plan + list
         </Link>
+        {recentPlans.length > 0 && (
+          <GenerateFromPlanButton plans={recentPlans} />
+        )}
         <CreateGroceryListButton />
         <Link
           href="/app/pantry"
